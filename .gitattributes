@@ -1,0 +1,2 @@
+# Normalize text files to LF in repo, keep CRLF in working tree on Windows
+* text=auto eol=lf
