@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import time
 from dotenv import load_dotenv
 from utils.audio_processor import process_input
@@ -111,10 +112,16 @@ h1, h2, h3, h4, h5, h6 {
     position: relative;
     overflow: hidden;
     transition: border-color 0.2s;
+    animation: fade-up 0.35s ease-out both;
 }
 
 .card:hover {
     border-color: var(--accent);
+}
+
+@keyframes fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .card::before {
@@ -210,6 +217,7 @@ h1, h2, h3, h4, h5, h6 {
     margin: 0.4rem 0;
     border: 1px solid var(--border);
     font-size: 0.8rem;
+    animation: fade-up 0.3s ease-out both;
 }
 
 .status-dot {
@@ -259,6 +267,26 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 0.85rem;
     line-height: 1.6;
     max-width: 90%;
+    animation: pop-in 0.2s ease-out both;
+}
+
+@keyframes pop-in {
+    from { opacity: 0; transform: scale(0.98); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Loader ── */
+.loader {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 3px solid rgba(124,58,237,0.2);
+    border-top-color: var(--accent);
+    animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 .user-label  { color: var(--accent-glow); }
@@ -377,7 +405,15 @@ if run_btn:
 
         try:
             with progress_placeholder.container():
-                st.info("⚙️ Pipeline running — see sidebar for live status…")
+                st.markdown(
+                    """
+                    <div class="status-bar">
+                        <div class="loader"></div>
+                        <span>⚙️ Pipeline running — see sidebar for live status…</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
             update_step("audio", "active")
             chunks = process_input(source)
@@ -416,7 +452,6 @@ if run_btn:
             }
             st.session_state.pipeline_done = True
             progress_placeholder.success("✅ Analysis complete!")
-            time.sleep(0.5)
             progress_placeholder.empty()
             st.rerun()
 
@@ -484,7 +519,7 @@ if st.session_state.result:
 
     # Chat history display
     if st.session_state.chat_history:
-        chat_html = '<div class="chat-container">'
+        chat_html = '<div class="chat-container" id="chat-scroll">'
         for msg in st.session_state.chat_history:
             if msg["role"] == "user":
                 chat_html += f"""
@@ -500,6 +535,15 @@ if st.session_state.result:
                 </div>"""
         chat_html += '</div>'
         st.markdown(chat_html, unsafe_allow_html=True)
+                components.html(
+                        """
+                        <script>
+                            const el = document.getElementById('chat-scroll');
+                            if (el) { el.scrollTop = el.scrollHeight; }
+                        </script>
+                        """,
+                        height=0,
+                )
     else:
         st.markdown("""
         <div class="card" style="text-align:center;padding:2rem">
@@ -507,14 +551,9 @@ if st.session_state.result:
             <div style="color:var(--text-muted);font-size:0.85rem">Ask anything about your meeting transcript</div>
         </div>""", unsafe_allow_html=True)
 
-    # Chat input
-    chat_col1, chat_col2 = st.columns([5, 1], gap="small")
-    with chat_col1:
-        user_input = st.text_input("Your question", placeholder="What were the main decisions made?", label_visibility="collapsed")
-    with chat_col2:
-        send_btn = st.button("Send →", use_container_width=True)
-
-    if send_btn and user_input.strip():
+    # Chat input (Enter to send)
+    user_input = st.chat_input("Ask about your meeting")
+    if user_input and user_input.strip():
         with st.spinner("Thinking…"):
             answer = ask_question(r["rag_chain"], user_input.strip())
         st.session_state.chat_history.append({"role": "user",      "content": user_input.strip()})
