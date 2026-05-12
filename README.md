@@ -56,6 +56,7 @@ streamlit run app.py
 ```
 
 Open the browser UI, paste a YouTube URL or a local file path, choose language, and click Analyze.
+Live : //ai-video-analyzer-rmbrjfemqfzosappyt3jmx.streamlit.app/  
 
 ## Run the CLI
 
