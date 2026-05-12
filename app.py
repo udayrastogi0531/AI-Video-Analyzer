@@ -534,7 +534,7 @@ if st.session_state.result:
                     <div class="chat-bubble bot-bubble">{msg['content']}</div>
                 </div>"""
         chat_html += '</div>'
-        st.markdown(chat_html, unsafe_allow_html=True)
+                st.markdown(chat_html, unsafe_allow_html=True)
                 components.html(
                         """
                         <script>
