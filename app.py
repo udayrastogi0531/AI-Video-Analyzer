@@ -534,16 +534,16 @@ if st.session_state.result:
                     <div class="chat-bubble bot-bubble">{msg['content']}</div>
                 </div>"""
         chat_html += '</div>'
-                st.markdown(chat_html, unsafe_allow_html=True)
-                components.html(
-                        """
-                        <script>
-                            const el = document.getElementById('chat-scroll');
-                            if (el) { el.scrollTop = el.scrollHeight; }
-                        </script>
-                        """,
-                        height=0,
-                )
+        st.markdown(chat_html, unsafe_allow_html=True)
+        components.html(
+            """
+            <script>
+              const el = document.getElementById('chat-scroll');
+              if (el) { el.scrollTop = el.scrollHeight; }
+            </script>
+            """,
+            height=0,
+        )
     else:
         st.markdown("""
         <div class="card" style="text-align:center;padding:2rem">
