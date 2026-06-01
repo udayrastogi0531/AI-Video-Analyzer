@@ -1,78 +1,261 @@
-# AI Video Analyzer
+# 🏗️ Architecture
 
-AI Video Analyzer is a Streamlit app and CLI pipeline that turns YouTube videos or local media files into meeting intelligence. It downloads or converts audio, transcribes with Whisper or Sarvam, summarizes with Mistral, extracts action items/decisions/questions, and lets you chat with the transcript via a local RAG index (Chroma + HuggingFace embeddings).
+## System Architecture
 
-## Features
-- YouTube or local file input
-- Audio chunking and preprocessing
-- Transcription: local Whisper (English) or Sarvam (Hinglish -> English)
-- Title and summary generation (Mistral)
-- Action items, key decisions, open questions extraction
-- RAG chat over the meeting transcript
-- Streamlit UI and CLI pipeline
+```mermaid
+flowchart TD
 
-## Tech Stack
-- Streamlit for UI
-- yt-dlp + ffmpeg + pydub for audio
-- Whisper (local) and Sarvam for transcription
-- LangChain + Mistral for LLM tasks
-- Chroma + sentence-transformers for RAG
+A[🎥 YouTube URL / Local Video] --> B[📥 yt-dlp / File Upload]
+B --> C[🎵 Audio Extraction]
+C --> D[✂️ Audio Chunking]
 
-## Project Structure
-- app.py - Streamlit UI
-- main.py - CLI pipeline and RAG chat
-- core/ - Summarizer, extractor, RAG, vector store
-- utils/ - Audio processing utilities
+D --> E{Language Mode}
 
-## Requirements
-- Python 3.10+ (recommended)
-- ffmpeg installed and on PATH
+E -->|English| F[🎙️ Whisper STT]
+E -->|Hinglish| G[🗣️ Sarvam STT]
 
-Install dependencies:
+F --> H[📝 Transcript]
+G --> H
 
-```bash
-pip install -r Requirements.txt
+H --> I[🧠 Mistral LLM]
+
+I --> J[📄 Meeting Summary]
+I --> K[✅ Action Items]
+I --> L[📌 Key Decisions]
+I --> M[❓ Open Questions]
+
+H --> N[🔍 Text Chunking]
+N --> O[🧠 HuggingFace Embeddings]
+O --> P[(🗄️ Chroma Vector DB)]
+
+Q[💬 User Question] --> R[🔎 Similarity Search]
+P --> R
+
+R --> S[📚 Relevant Context]
+S --> T[🤖 Mistral RAG Answer]
+
+T --> U[✅ Chat Response]
 ```
 
-## Environment Variables
-Create a `.env` file (do not commit it):
+---
 
-```bash
-MISTRAL_API_KEY=your_mistral_api_key
-SARVAM_API_KEY=your_sarvam_api_key
-WHISPER_MODEL=base
-SARVAM_STT_MODEL=saaras:v2.5
+# 🔄 Workflow
+
+## 1️⃣ Video Input
+
+Users can provide:
+
+* YouTube URL
+* Local Video File
+* Local Audio File
+
+```python
+source = input("Enter YouTube URL or file path:")
 ```
 
-Notes:
-- `MISTRAL_API_KEY` is required for summarization, extraction, and RAG answers.
-- `SARVAM_API_KEY` is required only for Hinglish mode.
-- `WHISPER_MODEL` defaults to `base` on CPU and `small` on GPU.
+---
 
-## Run the App (Streamlit)
+## 2️⃣ Audio Extraction
 
-```bash
-streamlit run app.py
+Video is converted into audio using ffmpeg.
+
+```python
+ffmpeg.input(video_path).output(audio_path).run()
 ```
 
-Open the browser UI, paste a YouTube URL or a local file path, choose language, and click Analyze.
-Live : //ai-video-analyzer-rmbrjfemqfzosappyt3jmx.streamlit.app/  
+---
 
-## Run the CLI
+## 3️⃣ Audio Chunking
 
-```bash
-python main.py
+Long audio files are split into manageable chunks.
+
+```python
+chunks = split_audio(audio_file)
 ```
 
-The CLI prompts for a source and language, prints the title/summary/action items, and starts a chat loop.
+Benefits:
 
-## RAG Storage
-The vector index is persisted in `vector_db/`. You can delete this folder to rebuild the index.
+* Faster transcription
+* Lower memory usage
+* Better processing reliability
 
-## Troubleshooting
-- If transcription fails, ensure ffmpeg is installed and visible in PATH.
-- If Mistral calls fail, verify `MISTRAL_API_KEY` in `.env`.
-- Large uploads or slow YouTube links may take time to process.
+---
 
-## License
-Add a license if you plan to publish this project.
+## 4️⃣ Speech-to-Text
+
+### English Mode
+
+Uses OpenAI Whisper.
+
+```python
+model = whisper.load_model("base")
+result = model.transcribe(audio_path)
+```
+
+### Hinglish Mode
+
+Uses Sarvam AI.
+
+```python
+response = sarvam.transcribe(audio_file)
+```
+
+Output:
+
+```text
+Raw Transcript
+```
+
+---
+
+## 5️⃣ AI Analysis
+
+Transcript is sent to Mistral LLM.
+
+Generated outputs:
+
+* Meeting Title
+* Executive Summary
+* Action Items
+* Key Decisions
+* Open Questions
+
+```python
+response = llm.invoke(prompt)
+```
+
+---
+
+## 6️⃣ RAG Index Creation
+
+Transcript is split into chunks.
+
+```python
+chunks = text_splitter.split_text(transcript)
+```
+
+Embeddings are generated.
+
+```python
+embeddings = HuggingFaceEmbeddings()
+```
+
+Stored in Chroma.
+
+```python
+vectorstore = Chroma.from_documents(
+    chunks,
+    embeddings
+)
+```
+
+---
+
+## 7️⃣ Interactive Chat
+
+Users can ask questions like:
+
+* What were the action items?
+* What deadlines were discussed?
+* Summarize the discussion about budget.
+* Who was assigned which task?
+
+Query flow:
+
+```text
+User Query
+     │
+     ▼
+Similarity Search
+     │
+     ▼
+Relevant Chunks
+     │
+     ▼
+Mistral LLM
+     │
+     ▼
+Answer
+```
+
+---
+
+# 📊 Data Flow
+
+```text
+Video / Audio Input
+        │
+        ▼
+Audio Extraction
+        │
+        ▼
+Audio Chunking
+        │
+        ▼
+Speech-to-Text
+        │
+        ▼
+Transcript
+        │
+ ┌──────┴────────┐
+ ▼               ▼
+Meeting AI      RAG Pipeline
+Analysis        (Embeddings)
+ ▼               ▼
+Summary       ChromaDB
+Action Items      │
+Decisions         ▼
+Questions     Semantic Search
+      \          /
+       \        /
+        ▼      ▼
+      User Chat
+```
+
+---
+
+# 🛠️ Technology Stack
+
+| Layer              | Technology            |
+| ------------------ | --------------------- |
+| Frontend           | Streamlit             |
+| Video Download     | yt-dlp                |
+| Audio Processing   | ffmpeg, pydub         |
+| Speech Recognition | Whisper, Sarvam       |
+| LLM                | Mistral AI            |
+| Framework          | LangChain             |
+| Embeddings         | sentence-transformers |
+| Vector Database    | ChromaDB              |
+| RAG Engine         | LangChain Retriever   |
+| Language           | Python                |
+
+---
+
+# 🎯 Use Cases
+
+* Meeting Intelligence
+* Lecture Analysis
+* Podcast Summarization
+* Interview Analysis
+* YouTube Video Summaries
+* Team Standups
+* Research Discussions
+* Educational Content Q&A
+
+---
+
+# 🚀 Future Improvements
+
+* Multi-video knowledge base
+* Speaker diarization
+* Timestamp citations
+* Real-time transcription
+* PDF export
+* Meeting minutes generation
+* Team collaboration
+* Cloud deployment
+* Multilingual support
+* Voice-based chat
+
+```
+```
